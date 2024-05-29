@@ -1,6 +1,6 @@
 from modules.database.database import db
-from models.tg_users import TgUsers
-from models.user_ideas import UserIdeas
+from modules.database.models.tg_users import TgUsers
+from modules.database.models.user_ideas import UserIdeas
 
 
 def create_tables():

@@ -1,4 +1,5 @@
 from telebot.types import User, Message, InlineKeyboardMarkup, InlineKeyboardButton
+from telebot.apihelper import ApiTelegramException
 from datetime import datetime
 
 from modules.constants.telegram_bot import bot
@@ -15,20 +16,37 @@ class Exec:
         self.db_user.last_update = datetime.now()
         TgUsers.save(self.db_user)
 
+    def edit(self, **data):
+        try:
+            bot.edit_message_text(chat_id=self.message.chat.id, message_id=self.message.id, **data)
+        except ApiTelegramException:
+            bot.send_message(self.message.chat.id, bm.SOMETHING_WENT_WRONG)
+            bot.edit_message_text(chat_id=self.message.chat.id, message_id=self.message.id + 1, **data)
+
     def start_greet(self):
         buttons = InlineKeyboardMarkup().add(InlineKeyboardButton('Оставить идею', callback_data='add_idea'))
-        bot.send_message(self.message.chat.id, bm.GREET, reply_markup=buttons)
+        self.edit(text=bm.GREET, reply_markup=buttons)
 
     def add_idea(self):
-        bot.send_message(self.message.chat.id, bm.INPUT_IDEA)
+        self.edit(text=bm.INPUT_IDEA)
         bot.register_next_step_handler(self.message, callback=self.register_idea)
 
     def register_idea(self, message: Message):
+        bot.delete_message(message.chat.id, message.id)
         if len(message.text) > 1000:
-            bot.send_message(self.message.chat.id, bm.SOMETHING_WENT_WRONG)
+            self.edit(text=bm.SOMETHING_WENT_WRONG)
             return
 
         data = {"user": self.db_user, "idea": message.text.strip()}
         UserIdeas.create(**data)
         buttons = InlineKeyboardMarkup().add(InlineKeyboardButton('Предложить еще идей', callback_data='add_idea'))
-        bot.send_message(self.message.chat.id, bm.THANKS_FOR_SUPPORTING, reply_markup=buttons)
+        self.edit(text=bm.THANKS_FOR_SUPPORTING, reply_markup=buttons)
+
+    def all_ideas(self):
+        if self.tb_user.id not in [1044385209]:
+            buttons = InlineKeyboardMarkup().add(InlineKeyboardButton('Предложить идеи', callback_data='add_idea'))
+            self.edit(text="На админке, сижу только я, а тебе нечего сюда тыкать", reply_markup=buttons)
+            return
+        for idea in UserIdeas.select():
+            bot.send_message(self.message.chat.id, bm.IDEA.format(idea.id, idea.user.telegram_id, idea.idea), parse_mode='HTML')
+            UserIdeas.delete_by_id(idea.id)

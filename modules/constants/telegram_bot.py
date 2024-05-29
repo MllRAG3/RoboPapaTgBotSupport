@@ -1,4 +1,4 @@
-from config import BOT_TOKEN
+from modules.constants.config import BOT_TOKEN
 from telebot import TeleBot
 from typing import Final
 
